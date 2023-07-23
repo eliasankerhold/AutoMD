@@ -1,7 +1,7 @@
 from numpy.typing import NDArray
 import numpy as np
-from shapes import PLine2d, PolyArc
-from utils import rotate_vec, tuple_to_rad, to_rad
+from shapes import PolyArc, PolyRectangle, PLine2d
+from utils import rotate_vec, tuple_to_rad, to_rad, dtype
 from acad_api import Acad
 
 from typing import Union
@@ -21,6 +21,7 @@ class CPWSection:
         self.anchor = anchor
         self.elements = None
         self.endpoints = None
+        self.length = None
 
     def __repr__(self):
         return f"{self.name}: anchor={self.anchor}"
@@ -31,12 +32,13 @@ class CPWStraight(CPWSection):
         super(CPWStraight, self).__init__(**kwargs)
 
         self.angle = angle
+        self.rad_angle = to_rad(self.angle)
         self.length = length
 
         l_points = np.array([[0, 0],
                              [self.length, 0],
                              [self.length, self.width],
-                             [0, self.width]])
+                             [0, self.width]], dtype=dtype)
 
         u_points = l_points.copy()
         u_points[:, 1] += self.gap + self.width
@@ -67,12 +69,14 @@ class CPWArc(CPWSection):
                      'outer inner': self.radius + 0.5 * self.gap,
                      'outer outer': self.radius + 0.5 * self.gap + self.width}
 
+        self.length = self.angle / (2 * np.pi) * self.radius
+
         sincos = np.array([np.cos(self.angle), np.sin(self.angle)])
 
         inner_points = np.array([[self.rads['inner inner'], 0], [self.rads['inner outer'], 0],
-                                 self.rads['inner outer'] * sincos, self.rads['inner inner'] * sincos])
+                                 self.rads['inner outer'] * sincos, self.rads['inner inner'] * sincos], dtype=dtype)
         outer_points = np.array([[self.rads['outer inner'], 0], [self.rads['outer outer'], 0],
-                                 self.rads['outer outer'] * sincos, self.rads['outer inner'] * sincos])
+                                 self.rads['outer outer'] * sincos, self.rads['outer inner'] * sincos], dtype=dtype)
 
         for i, vec in enumerate(inner_points):
             inner_points[i] = rotate_vec(vec, self.angle_span[0], rad=True)
@@ -84,4 +88,10 @@ class CPWArc(CPWSection):
         inner_points += shift
         outer_points += shift
 
+        r_ends = CPWEndpoint(
+            ends=np.array([inner_points[0], inner_points[1], outer_points[0], outer_points[1]], dtype=dtype))
+        l_ends = CPWEndpoint(
+            ends=np.array([inner_points[3], inner_points[2], outer_points[3], inner_points[2]], dtype=dtype))
+
         self.elements = [PolyArc(inner_points, angle=self.angle), PolyArc(outer_points, angle=self.angle)]
+        self.endpoints = (l_ends, r_ends)
