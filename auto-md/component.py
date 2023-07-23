@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Union
+from acad_api import Acad
 
 import numpy as np
 from numpy.typing import NDArray
@@ -23,6 +24,11 @@ class Component(ABC):
     @abstractmethod
     def preview(self):
         pass
+
+    def draw(self, acad: Acad):
+        for cpw in self.cpw_sections.values():
+            for el in cpw.elements:
+                el.draw(acad=acad)
 
     def move(self, shift: Union[NDArray, list]):
         shift = np.array(shift)
