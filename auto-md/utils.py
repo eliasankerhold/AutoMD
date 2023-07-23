@@ -22,3 +22,28 @@ def tuple_to_rad(angles: tuple):
 
 def to_rad(angle: float):
     return angle * np.pi / 180.0
+
+
+def center_two(p1: NDArray, p2: NDArray):
+    assert p1.shape == (2,)
+    assert p2.shape == (2,)
+
+    return np.array([(p2[0] + p1[0]) * 0.5, (p2[1] + p1[1]) * 0.5], dtype=dtype)
+
+
+def sort_endpoints(p1: NDArray, p2: NDArray):
+    assert p1.shape == (2,)
+    assert p2.shape == (2,)
+
+    if p1[0] > p2[0]:
+        return p2, p1
+
+    elif p1[0] < p2[0]:
+        return p1, p2
+
+    elif p1[0] == p2[0]:
+        if p1[1] > p2[1]:
+            return p2, p1
+
+        else:
+            return p1, p2

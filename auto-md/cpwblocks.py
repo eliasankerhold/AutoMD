@@ -1,16 +1,20 @@
 from numpy.typing import NDArray
 import numpy as np
-from shapes import PolyArc, PolyRectangle, PLine2d
-from utils import rotate_vec, tuple_to_rad, to_rad, dtype
-from acad_api import Acad
+from shapes import PolyArc, PLine2d, PolyBulge
+from utils import rotate_vec, tuple_to_rad, to_rad, dtype, center_two, sort_endpoints
 
 from typing import Union
 
 
 class CPWEndpoint:
-    def __init__(self, ends: NDArray):
-        assert ends.shape[0] == 4
-        self.ends = ends
+    def __init__(self, left_lower: NDArray, right_upper: NDArray):
+        assert left_lower.shape == (2,)
+        assert right_upper.shape == (2,)
+        self.left_lower = left_lower
+        self.right_upper = right_upper
+
+    def __repr__(self):
+        return f'left lower={self.left_lower} - right upper={self.right_upper}'
 
 
 class CPWSection:
@@ -18,13 +22,14 @@ class CPWSection:
         self.name = name
         self.gap = gap
         self.width = width
-        self.anchor = anchor
+        self.anchor = np.array(anchor, dtype=dtype)
         self.elements = None
         self.endpoints = None
         self.length = None
+        self.half_cpw_width = 0.5 * self.gap + self.width
 
     def __repr__(self):
-        return f"{self.name}: anchor={self.anchor}"
+        return f"{self.name}: anchor={self.anchor}, endpoints: {self.endpoints}"
 
 
 class CPWStraight(CPWSection):
@@ -33,15 +38,19 @@ class CPWStraight(CPWSection):
 
         self.angle = angle
         self.rad_angle = to_rad(self.angle)
-        self.length = length
+        self.length = np.abs(length)
 
         l_points = np.array([[0, 0],
                              [self.length, 0],
                              [self.length, self.width],
                              [0, self.width]], dtype=dtype)
 
+        l_points[:, 1] -= self.half_cpw_width
         u_points = l_points.copy()
         u_points[:, 1] += self.gap + self.width
+
+        l_end = rotate_vec(self.anchor, self.angle)
+        r_end = rotate_vec(np.array([self.length, 0]), self.angle) + self.anchor
 
         for i in range(l_points.shape[0]):
             l_points[i] = rotate_vec(l_points[i], self.angle)
@@ -50,11 +59,8 @@ class CPWStraight(CPWSection):
         l_points += self.anchor
         u_points += self.anchor
 
-        r_ends = CPWEndpoint(ends=np.array([l_points[1], l_points[2], u_points[1], u_points[2]]))
-        l_ends = CPWEndpoint(ends=np.array([l_points[0], l_points[3], u_points[0], u_points[3]]))
-
         self.elements = [PLine2d(l_points), PLine2d(u_points)]
-        self.endpoints = (l_ends, r_ends)
+        self.endpoints = CPWEndpoint(*sort_endpoints(l_end, r_end))
 
 
 class CPWArc(CPWSection):
@@ -69,7 +75,7 @@ class CPWArc(CPWSection):
                      'outer inner': self.radius + 0.5 * self.gap,
                      'outer outer': self.radius + 0.5 * self.gap + self.width}
 
-        self.length = self.angle / (2 * np.pi) * self.radius
+        self.length = np.abs(self.angle * self.radius)
 
         sincos = np.array([np.cos(self.angle), np.sin(self.angle)])
 
@@ -84,14 +90,46 @@ class CPWArc(CPWSection):
         for i, vec in enumerate(outer_points):
             outer_points[i] = rotate_vec(vec, self.angle_span[0], rad=True)
 
-        shift = self.anchor - inner_points[0]
+        shift = self.anchor - (inner_points[0] + self.half_cpw_width * np.array(
+            [np.cos(self.angle_span[0]), np.sin(self.angle_span[0])]))
         inner_points += shift
         outer_points += shift
 
-        r_ends = CPWEndpoint(
-            ends=np.array([inner_points[0], inner_points[1], outer_points[0], outer_points[1]], dtype=dtype))
-        l_ends = CPWEndpoint(
-            ends=np.array([inner_points[3], inner_points[2], outer_points[3], inner_points[2]], dtype=dtype))
+        l_end = center_two(p1=inner_points[3], p2=outer_points[2])
 
         self.elements = [PolyArc(inner_points, angle=self.angle), PolyArc(outer_points, angle=self.angle)]
-        self.endpoints = (l_ends, r_ends)
+        self.endpoints = CPWEndpoint(*sort_endpoints(l_end, self.anchor))
+
+
+class CPWCap(CPWSection):
+    def __init__(self, angle: float, rounded: bool = True, **kwargs):
+        super(CPWCap, self).__init__(**kwargs)
+
+        self.fillet_radius = self.gap * 0.5
+        self.angle = angle
+        self.rounded = rounded
+        self.length = self.width
+
+        if self.rounded:
+            self.points = np.array([[0, 0],
+                                    [self.width, 0],
+                                    [self.width * 2, self.width],
+                                    [self.width * 2, self.width + self.gap],
+                                    [self.width, self.half_cpw_width * 2],
+                                    [0, self.half_cpw_width * 2],
+                                    [0, self.half_cpw_width * 2 - self.width],
+                                    [0, self.half_cpw_width * 2 - self.width - self.gap]]) - np.array(
+                [0, self.half_cpw_width])
+
+            angle_signs = np.array([[np.pi / 2.0, 1], [np.pi / 2.0, 1], [np.pi, -1]])
+            bulge_inds = [1, 3, 6]
+
+            for i, p in enumerate(self.points):
+                self.points[i] = rotate_vec(p, theta=self.angle)
+
+            self.points += self.anchor
+
+            self.elements = [PolyBulge(points=self.points, angles_signs=angle_signs, bulge_inds=bulge_inds)]
+
+        else:
+            raise NotImplementedError
