@@ -54,8 +54,7 @@ class PolyArc(PLine2d):
         self.bulge = np.round(np.tan(0.25 * self.angle), self.round_prec)
 
     def draw(self, acad: Acad):
-        self.acad_object = acad.model.AddLightweightPolyline(self.points)
-        self.acad_object.closed = True
+        super().draw(acad=acad)
         self.acad_object.SetBulge(1, self.bulge)
         self.acad_object.SetBulge(3, -self.bulge)
 
@@ -71,7 +70,6 @@ class PolyBulge(PLine2d):
         self.bulge_values = np.round(np.tan(0.25 * self.angles_signs[:, 0]), self.round_prec) * self.angles_signs[:, 1]
 
     def draw(self, acad: Acad):
-        self.acad_object = acad.model.AddLightweightPolyline(self.points)
-        self.acad_object.closed = True
+        super().draw(acad=acad)
         for i, k in zip(self.bulge_inds, self.bulge_values):
             self.acad_object.setBulge(i, k)
