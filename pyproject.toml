@@ -1,0 +1,23 @@
+# pyproject.toml
+
+[build-system]
+requires      = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auto-md"
+version = "0.0.1"
+description = "Semi-automated sample design in AutoCAD"
+readme = "README.md"
+authors = [{ name = "Elias Ankerhold", email = "elias.ankerhold@aalto.fi" }]
+license = { file = "LICENSE.txt" }
+classifiers = [
+    "License :: OSI Approved :: GPL-3.0-only",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "comtypes>=1.1.0",
+    "numpy>=1.20.1",
+]
+requires-python = ">=3.7"
