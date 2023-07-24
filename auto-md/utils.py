@@ -5,6 +5,13 @@ rounding_precision = 10
 dtype = 'float64'
 
 
+def distance_two(p1: NDArray, p2: NDArray):
+    assert p1.shape == (2,)
+    assert p2.shape == (2,)
+
+    return np.sqrt(np.sum(np.square(p1 - p2)))
+
+
 def rotate_vec(vec: NDArray, theta: float, rad: bool = False):
     assert vec.shape == (2,)
     if not rad:
@@ -16,12 +23,41 @@ def rotate_vec(vec: NDArray, theta: float, rad: bool = False):
     return np.dot(rot_mat, vec)
 
 
+def mirror_points(points: NDArray, theta: float, rad: bool = False):
+    assert points.shape[1] == 2
+    if not rad:
+        theta = (theta / 180.0) * np.pi
+
+    ref_mat = np.round(np.array([[np.cos(2 * theta), np.sin(2 * theta)],
+                                 [np.sin(2 * theta), -np.cos(2 * theta)]], dtype='float64'), rounding_precision)
+
+    reflected = points.copy()
+    for i, p in enumerate(points):
+        reflected[i, :] = np.dot(ref_mat, p)
+
+    return reflected
+
+
+def rotate_points(points: NDArray, theta: float, rad: bool = False):
+    assert points.shape[1] == 2
+
+    rotated = points.copy()
+    for i, p in enumerate(points):
+        rotated[i, :] = rotate_vec(theta=theta, vec=p, rad=rad)
+
+    return rotated
+
+
 def tuple_to_rad(angles: tuple):
     return angles[0] * np.pi / 180.0, angles[1] * np.pi / 180.0
 
 
 def to_rad(angle: float):
     return angle * np.pi / 180.0
+
+
+def to_deg(angle: float):
+    return angle * 180.0 / np.pi
 
 
 def center_two(p1: NDArray, p2: NDArray):
