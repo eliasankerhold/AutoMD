@@ -3,7 +3,7 @@ from sections import CPWStraight, CPWArc, Pad
 from numpy.typing import NDArray
 from typing import Union
 import numpy as np
-from utils import to_deg, to_rad
+from utils import to_deg
 
 
 class TransmissionLine(Component):
