@@ -5,6 +5,15 @@ import os
 
 
 class Acad:
+    """
+    Interfaces the AutoCAD ActiveX API.
+
+    :ivar app: ActiveX object of AutoCAD instance.
+    :ivar doc: ActiveX object of active document.
+    :ivar model: ActiveX object of active model space.
+
+    :raise WindowsError: If no current AutoCAD instance is running.
+    """
     def __init__(self):
         for pattern in ("acax*enu.tlb", "axdb*enu.tlb"):
             pattern = os.path.join(

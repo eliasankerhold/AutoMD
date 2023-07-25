@@ -1,40 +1,54 @@
-from component import Component
-from sections import CPWStraight, CPWArc, CPWSection, CPWCap
+from .component import Component
+from .sections import CPWStraight, CPWArc, CPWSection, CPWCap
 
 import numpy as np
 
 
 class Resonator(Component):
+    """
+    Implements a CPW resonator with meandering architecture. Is automatically generated within the given constraints.
+
+    :ivar gap: Width of the gap of the CPW.
+    :ivar width: Width of the conductive part of the CPW.
+    :ivar arc_radius: Central curve radius of CPW curves.
+    :ivar coupling_length: Length of the straight coupling segment.
+    :ivar coupling_spacer: Length of CPW straight between coupling segment and first meander.
+    :ivar end: Type of ending. 'straight' for end cap or 'arc' for arc and open end, 'none' for only open end.
+    """
     def __init__(self, length: float, gap: float, width: float, arc_radius: float, coupling_length: float,
                  coupling_spacer: float, end: str = 'arc', **kwargs):
         super(Resonator, self).__init__(**kwargs)
-        assert end in ['arc', 'straight']
+        assert end in ['arc', 'straight', 'none']
         assert self.max_height > arc_radius * 2.1
 
         self.length = length
-        self._actual_length = 0
-        self.gap = gap
         self.width = width
+        self.gap = gap
         self.arc_radius = arc_radius
         self.coupling_length = coupling_length
         self.coupling_spacer = coupling_spacer
-        self.full_cpw_width = self.width * 2 + self.gap
+        self.full_cpw_width = self.gap * 2 + self.width
         self.end = end
         self.n_segments = None
 
-        self.arc_params = {'radius': self.arc_radius, 'gap': self.gap, 'width': self.width}
-        self.straight_params = {'gap': self.gap, 'width': self.width}
+        self.arc_params = {'radius': self.arc_radius, 'width': self.width, 'gap': self.gap}
+        self.straight_params = {'width': self.width, 'gap': self.gap}
 
     def generate(self):
+        """
+        Generates resonating structure.
+
+        :return: False if generation failed.
+        """
         self._generate_transmission_coupler()
         self._generate_spacer_line()
-        if self._generate_meanders(final_component_len=self.width):
+        if self._generate_meanders(final_component_len=self.gap):
             self._generate_end_cap()
 
         else:
             self.sections = {}
             self._sections_list = []
-            return
+            return False
 
         self.move(shift=self.anchor)
 
@@ -46,15 +60,21 @@ class Resonator(Component):
                 f'WARNING: <{self.name}> generated, actual length - target length = {self._actual_length - self.length}')
 
     def preview(self):
-        pass
+        raise NotImplementedError
 
     def _generate_transmission_coupler(self):
+        """
+        Generates straight coupling segment to transmission line.
+        """
         t_coupler = CPWStraight(length=self.coupling_length, **self.straight_params, anchor=[0, 0], angle=270,
                                 name='transmission line coupler')
 
         self._add_section(t_coupler)
 
     def _generate_spacer_line(self):
+        """
+        Generates 90-degree curve and straight spacing segment from coupler to meandering structures.
+        """
         spacer_arc = CPWArc(name='spacer arc', **self.arc_params,
                             anchor=self.sections['transmission line coupler'].endpoints.left_lower,
                             angle_span=(180, 270))
@@ -66,6 +86,13 @@ class Resonator(Component):
         self._add_section(spacer_line)
 
     def _generate_meanders(self, final_component_len: float):
+        """
+        Computes the amount of meanders and the height of the vertical straight segments based on the target length and
+        the maximum available height. Generates the meandering structure accordingly.
+
+        :param final_component_len: Length of the components following after the meandering structure.
+        :return: True if generation successful, otherwise False.
+        """
         m_height = self.max_height - 2 * self.arc_radius
         count = 0
         success = False
@@ -111,10 +138,12 @@ class Resonator(Component):
             if i % 2 == 0:
                 angle_span = (180, 0)
                 angle = 270
+                anchor = self._sections_list[-1].endpoints.right_upper
 
             else:
                 angle_span = (180, 360)
                 angle = 90
+                anchor = self._sections_list[-1].endpoints.left_lower
 
             if i == n_segments:
                 length = last_height
@@ -123,7 +152,7 @@ class Resonator(Component):
                 length = m_height
 
             segment_arc = CPWArc(name=f'segment arc {i + 1}', **self.arc_params,
-                                 anchor=self._sections_list[-1].endpoints.right_upper, angle_span=angle_span)
+                                 anchor=anchor, angle_span=angle_span)
 
             segment_straight = CPWStraight(name=f'segment straight {i + 1}', **self.straight_params,
                                            anchor=segment_arc.endpoints.right_upper, length=length, angle=angle)
@@ -147,9 +176,12 @@ class Resonator(Component):
         return True
 
     def _generate_end_cap(self):
+        """
+        Generates end cap to terminate meandering structure.
+        """
         if self.n_segments % 2 == 0:
             angle = 270
-            anchor = self._sections_list[-1].endpoints.right_upper
+            anchor = self._sections_list[-1].endpoints.left_lower
 
         else:
             angle = 90
