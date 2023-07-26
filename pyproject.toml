@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autocadmd"
-version = "0.0.1"
+version = "0.0.2"
 description = "Semi-automated sample design in AutoCAD"
 readme = "README.md"
 authors = [{ name = "Elias Ankerhold", email = "elias.ankerhold@aalto.fi" }]
