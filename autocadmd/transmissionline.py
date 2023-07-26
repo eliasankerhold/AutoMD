@@ -49,6 +49,8 @@ class TransmissionLine(Component):
 
         print(f'<{self.name}> generated, total length = {self._actual_length}')
 
+        self.generated = True
+
     def preview(self):
         raise NotImplementedError
 
@@ -75,8 +77,8 @@ class TransmissionLine(Component):
         assert np.abs(dist[0]) >= self.arc_radius * 2 or np.isclose(dist[0], 0)
         assert np.abs(dist[1]) >= self.arc_radius * 2 or np.isclose(dist[1], 0)
         assert not np.isclose(np.sum(dist), 0)
-        assert 45 < to_deg(self.sections['left lower pad']._angle) < 135
-        assert 225 < to_deg(self.sections['right upper pad']._angle) < 315
+        assert 45 < to_deg(self.sections['left lower pad']._rad_angle) < 135
+        assert 225 < to_deg(self.sections['right upper pad']._rad_angle) < 315
 
         center_dist_start = np.array([self.max_width / 2.0, self.max_height / 2.0]) - self.start
 
@@ -104,7 +106,7 @@ class TransmissionLine(Component):
         :param path: List of dictionaries specifying CPW sections to be added.
         """
         current_anchor = self.sections['left lower pad'].endpoints.right_upper
-        current_angle = to_deg(self.sections['left lower pad']._angle)
+        current_angle = to_deg(self.sections['left lower pad']._rad_angle)
 
         c = 1
 
