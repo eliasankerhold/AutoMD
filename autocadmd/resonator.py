@@ -14,9 +14,10 @@ class Resonator(Component):
     :ivar coupling_length: Length of the straight coupling segment.
     :ivar coupling_spacer: Length of CPW straight between coupling segment and first meander.
     :ivar end: Type of ending. 'straight' for end cap or 'arc' for arc and open end, 'none' for only open end.
+    :ivar freq: Frequency of resonator, in Hz.
     """
     def __init__(self, length: float, gap: float, width: float, arc_radius: float, coupling_length: float,
-                 coupling_spacer: float, end: str = 'arc', **kwargs):
+                 coupling_spacer: float, end: str = 'arc', freq: float = None, **kwargs):
         super(Resonator, self).__init__(**kwargs)
         assert end in ['arc', 'straight', 'none']
         assert self.max_height > arc_radius * 2.1
@@ -30,6 +31,7 @@ class Resonator(Component):
         self.full_cpw_width = self.gap * 2 + self.width
         self.end = end
         self.n_segments = None
+        self.freq = freq
 
         self.arc_params = {'radius': self.arc_radius, 'width': self.width, 'gap': self.gap}
         self.straight_params = {'width': self.width, 'gap': self.gap}
@@ -53,11 +55,16 @@ class Resonator(Component):
         self.move(shift=self.anchor)
 
         if np.isclose(self.length, self._actual_length):
-            print(f'<{self.name}> generated, total length = {self._actual_length}')
+            if self.freq is not None:
+                print(f'<{self.name}> generated, total length = {self._actual_length}, freq = {self.freq}')
+            else:
+                print(f'<{self.name}> generated, total length = {self._actual_length}')
 
         else:
             print(
                 f'WARNING: <{self.name}> generated, actual length - target length = {self._actual_length - self.length}')
+
+        self.generated = True
 
     def preview(self):
         raise NotImplementedError
