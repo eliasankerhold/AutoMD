@@ -105,7 +105,7 @@ class CPWEndpoints:
         tols = np.array([True if i <= tol else False for i in dists])
         status = np.array([self.connected_ll, self.connected_ru])
 
-        available = np.logical_and(tols, status)
+        available = np.logical_and(tols, ~status)
 
         if conn == 0 and available[0]:
             self.connected_ll = True
